@@ -7,7 +7,9 @@ You can either clone this repository using Git or download the whole repository 
 
 All of these scripts, written by various authors, are licenced under the [GNU General Public License](LICENSE.md).
 
-_This fork is intended to get some of the gcode compatible with my cheap [grbl](https://github.com/gnea/grbl) based Sainsmart Genmitsu CNC Router CNC1810._
+_This fork is intended to get some of the gcode compatible with my cheap 
+[grbl](https://github.com/gnea/grbl) based Sainsmart Genmitsu CNC Router 
+CNC1810. (See grbl branch)_
 
 The Scripts
 -----------
