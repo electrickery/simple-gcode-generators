@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-version = '1.5.0'
+version = '1.5.1-hack'
 # python face.py
 # Dec 4 2007
 # Face G-Code Generator for LinuxCNC
@@ -47,6 +47,11 @@ version = '1.5.0'
 	is the home directory. After saving a gcode file, this directory is the new
 	NC File directory and can be saved with save preferences.
 	Added safe z hight.
+	
+2021-07-07 Fred Jan Kraan
+	Adapted to grbl 1.1f
+	Replaced LeadIn/LeadOut with X-offset and Y-offset
+	Replaced all G0 (rapid) movements to G1 (coordinated)
 """
 from Tkinter import *
 from tkFileDialog import *
@@ -158,11 +163,23 @@ class Application(Frame):
         self.Leadin = Entry(self, width=10, textvariable=self.SafeZVar)
         self.Leadin.grid(row=5, column=1, sticky=W)
         
-        self.st8 = Label(self, text='Lead In / Lead Out')
+#        self.st8 = Label(self, text='Lead In / Lead Out')
+#        self.st8.grid(row=5, column=2, sticky=E)
+#        self.LeadinVar = StringVar()
+#        self.Leadin = Entry(self, width=10, textvariable=self.LeadinVar)
+#        self.Leadin.grid(row=5, column=3, sticky=W)
+        
+        self.st8 = Label(self, text='X-offset')
         self.st8.grid(row=5, column=2, sticky=E)
-        self.LeadinVar = StringVar()
-        self.Leadin = Entry(self, width=10, textvariable=self.LeadinVar)
-        self.Leadin.grid(row=5, column=3, sticky=W)
+        self.XoffsetVar = StringVar()
+        self.Xoffset = Entry(self, width=10, textvariable=self.XoffsetVar)
+        self.Xoffset.grid(row=5, column=3, sticky=W)
+        
+        self.st8 = Label(self, text='Y-offset')
+        self.st8.grid(row=6, column=2, sticky=E)
+        self.YoffsetVar = StringVar()
+        self.Yoffset = Entry(self, width=10, textvariable=self.YoffsetVar)
+        self.Yoffset.grid(row=6, column=3, sticky=W)
         
         self.spacer3 = Label(self, text='')
         self.spacer3.grid(row=6, column=0, columnspan=4)
@@ -229,28 +246,40 @@ class Application(Frame):
         assume that the part is at X0 to X+, Y0 to Y-"""
         D=Decimal
         z=float(self.SafeZVar.get())
+
+ #       YOffset = D('56.0')
+ #       XOffset2 = D('10.0')
+        
         # Calculate the start position 1/2 the tool diameter + 0.100 in X and Stepover in Y
         self.ToolRadius = self.FToD(self.ToolDiameterVar.get())/2
-        if len(self.LeadinVar.get())>0:
-            self.LeadIn = self.FToD(self.LeadinVar.get())
-        else:
-            self.LeadIn = self.ToolRadius + D('0.1')
-        self.X_Start = -(self.LeadIn)
-        self.X_End = self.FToD(self.PartLengthVar.get()) + self.LeadIn
+        self.Xoffset = self.ToolRadius + D('0.1')
+        if len(self.XoffsetVar.get())>0:
+            self.Xoffset += self.FToD(self.XoffsetVar.get())
+        self.X_Start = self.Xoffset
+        self.X_End = self.FToD(self.PartLengthVar.get()) + self.Xoffset
+        
+        self.Yoffset = self.ToolRadius + D('0.1')
+        if len(self.YoffsetVar.get())>0:
+            self.Yoffset += self.FToD(self.YoffsetVar.get())
+            
+        self.Y_Start = self.Yoffset
+        self.Y_End = self.FToD(self.PartLengthVar.get()) + self.Yoffset
         if len(self.StepOverVar.get())>0:
             self.Y_StepOver = (self.FToD(self.ToolDiameterVar.get())\
                 * self.FToD(self.StepOverVar.get())/100)
         else:
             self.Y_StepOver = self.FToD(self.ToolDiameterVar.get())*D('.75')
+            
         if self.HomeVar.get()==4:
-        	self.Y_Start = (self.ToolRadius - self.Y_StepOver)
+        	self.Y_Start = (self.ToolRadius - self.Y_StepOver + self.Yoffset)
         	self.Y_End = -(self.FToD(self.PartWidthVar.get())-\
-            		(self.ToolRadius - self.Y_StepOver))+D('.1')
+            		(self.ToolRadius - self.Y_StepOver))+D('0.1') + self.Yoffset
         else:
-        	self.Y_Start = -(self.ToolRadius - self.Y_StepOver)
+        	self.Y_Start = -(self.ToolRadius - self.Y_StepOver + self.Yoffset)
         	self.Y_End = (self.FToD(self.PartWidthVar.get())+\
-            		(self.ToolRadius + self.Y_StepOver))+D('.1')
+            		(self.ToolRadius + self.Y_StepOver))+D('0.1') + self.Yoffset
         self.Z_Total = self.FToD(self.TotalToRemoveVar.get())
+        
         if len(self.DepthOfCutVar.get())>0:
             self.Z_Step = self.FToD(self.DepthOfCutVar.get())
             self.NumOfZSteps = int(self.FToD(self.TotalToRemoveVar.get()) / self.Z_Step)
@@ -259,6 +288,7 @@ class Application(Frame):
         else:
             self.Z_Step = 0
             self.NumOfZSteps = 1
+            
         self.NumOfYSteps = int(ceil(self.FToD(self.PartWidthVar.get())/self.Y_StepOver))
         self.Z_Position = 0
         # Generate the G-Codes
@@ -272,7 +302,7 @@ class Application(Frame):
         if len(self.FeedrateVar.get())>0:
             self.g_code.insert(END, 'F%s\n' % (self.FeedrateVar.get()))
         for i in range(self.NumOfZSteps):
-            self.g_code.insert(END, 'G0 X%.4f Y%.4f\nZ%.4f\n' \
+            self.g_code.insert(END, 'G1 X%.4f Y%.4f\nZ%.4f\n' \
                 %(self.X_Start, self.Y_Start,z))
             # Make sure the Z position does not exceed the total depth
             if self.Z_Step>0 and (self.Z_Total+self.Z_Position) >= self.Z_Step:
@@ -296,10 +326,10 @@ class Application(Frame):
                     self.Y_Position = self.Y_Position + self.Y_StepOver
                 if self.HomeVar.get()==4:
                     if self.Y_Position > self.Y_End:
-                        self.g_code.insert(END, 'G0 Y%.4f\n' % (self.Y_Position))
+                        self.g_code.insert(END, 'G1 Y%.4f\n' % (self.Y_Position))
                 else:
                     if self.Y_Position < self.Y_End:
-                        self.g_code.insert(END, 'G0 Y%.4f\n' % (self.Y_Position))
+                        self.g_code.insert(END, 'G1 Y%.4f\n' % (self.Y_Position))
         self.g_code.insert(END, 'G0 Z%.4f\n'% z)
         if len(self.SpindleRPMVar.get())>0:
             self.g_code.insert(END, 'M5\n')
@@ -386,7 +416,9 @@ class Application(Frame):
         self.ToolDiameterVar.set(self.GetIniData('face.ini','MillingPara','ToolDiameter','10'))
         self.SpindleRPMVar.set(self.GetIniData('face.ini','MillingPara','SpindleRPM','9000'))
         self.StepOverVar.set(self.GetIniData('face.ini','MillingPara','StepOver','50'))
-        self.LeadinVar.set(self.GetIniData('face.ini','MillingPara','Leadin'))
+#        self.LeadinVar.set(self.GetIniData('face.ini','MillingPara','Leadin'))
+        self.XoffsetVar.set(self.GetIniData('face.ini','MillingPara','Xoffset'))
+        self.YoffsetVar.set(self.GetIniData('face.ini','MillingPara','Yoffset'))
         self.UnitVar.set(int(self.GetIniData('face.ini','MillingPara','UnitVar','2')))
         self.HomeVar.set(int(self.GetIniData('face.ini','MillingPara','HomeVar','4')))
         self.SafeZVar.set(self.GetIniData('face.ini','MillingPara','SafeZ','10.0'))
@@ -408,7 +440,9 @@ class Application(Frame):
         set_pref('MillingPara','ToolDiameter',self.ToolDiameterVar.get())
         set_pref('MillingPara','SpindleRPM',self.SpindleRPMVar.get())
         set_pref('MillingPara','StepOver',self.StepOverVar.get())
-        set_pref('MillingPara','Leadin',self.LeadinVar.get())
+#        set_pref('MillingPara','Leadin',self.LeadinVar.get())
+        set_pref('MillingPara','Xoffset',self.XoffsetVar.get())
+        set_pref('MillingPara','Yoffset',self.YoffsetVar.get())
         set_pref('MillingPara','UnitVar',self.UnitVar.get())
         set_pref('MillingPara','HomeVar',self.HomeVar.get())
         set_pref('MillingPara','SafeZ',self.SafeZVar.get())

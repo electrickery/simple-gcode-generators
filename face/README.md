@@ -1,6 +1,15 @@
 Facing Software
 ===============
 
+In this version of face.py the Lead-in, lead-out value is replaced by 
+separate X0sset and Yoffset values, making it a bit more flexible for 
+other routers, like my grbl based CNC router. 
+
+The code seems to work for me, but User Interface and documentation are
+not updated yet.
+
+Based on:
+
 **Author:** John Thornton
 
 **Download:** [face.py](https://github.com/linuxcnc/simple-gcode-generators/raw/master/face/face.py)
