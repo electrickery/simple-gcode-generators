@@ -169,17 +169,17 @@ class Application(Frame):
 #        self.Leadin = Entry(self, width=10, textvariable=self.LeadinVar)
 #        self.Leadin.grid(row=5, column=3, sticky=W)
         
-        self.st8 = Label(self, text='X-offset')
+        self.st8 = Label(self, text='X/Y-offset')
         self.st8.grid(row=5, column=2, sticky=E)
         self.XoffsetVar = StringVar()
-        self.Xoffset = Entry(self, width=10, textvariable=self.XoffsetVar)
+        self.Xoffset = Entry(self, width=5, textvariable=self.XoffsetVar)
         self.Xoffset.grid(row=5, column=3, sticky=W)
         
-        self.st8 = Label(self, text='Y-offset')
-        self.st8.grid(row=6, column=2, sticky=E)
+#        self.st8 = Label(self, text='Y-offset')
+#        self.st8.grid(row=6, column=2, sticky=E)
         self.YoffsetVar = StringVar()
-        self.Yoffset = Entry(self, width=10, textvariable=self.YoffsetVar)
-        self.Yoffset.grid(row=6, column=3, sticky=W)
+        self.Yoffset = Entry(self, width=5, textvariable=self.YoffsetVar)
+        self.Yoffset.grid(row=5, column=3, sticky=E)
         
         self.spacer3 = Label(self, text='')
         self.spacer3.grid(row=6, column=0, columnspan=4)
